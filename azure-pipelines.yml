@@ -137,21 +137,23 @@ steps:
     echo "Limpiando proyectos Fortify anteriores..."
     sourceanalyzer -b Azure_Test_SAST -clean
   displayName: 'Limpiar proyecto Fortify'
+  env:
+    PATH: "$(PATH);C:/Program Files/Fortify/Fortify_SCA_and_Apps_25.2/bin"
+    JAVA_HOME: "C:/Program Files/Java/jdk-1.8"
 
 - script: |
     echo "Escaneando código con Fortify SCA..."
     sourceanalyzer -b Azure_Test_SAST -source 1.8 -scan -f Azure_Test_SAST.fpr
   displayName: 'Escanear con Fortify SCA'
   env:
-    PATH: "$(PATH);C:\Program Files\Fortify\Fortify_SCA_and_Apps_25.2\bin"  # Ajustado a Fortify 25.2
-    JAVA_HOME: "C:\Program Files\Java\jdk-1.8"  # Ajusta si usas otra versión de Java
+    PATH: "$(PATH);C:/Program Files/Fortify/Fortify_SCA_and_Apps_25.2/bin"
+    JAVA_HOME: "C:/Program Files/Java/jdk-1.8"
 
 - task: FortifyUpload@2
   inputs:
     fortifyProjectName: '$(SSC_APP_NAME)'
     fortifyProjectVersion: '$(SSC_VERSION_NAME)'
     fortifyServer: '$(SSC_URL)'
-    fortifyToken: '$(SSC_TOKEN)'  # Usar token CIT en lugar de usuario/contraseña
+    fortifyToken: '$(SSC_TOKEN)'
     fprFile: 'Azure_Test_SAST.fpr'
   displayName: 'Subir resultados a Fortify SSC'
-```
