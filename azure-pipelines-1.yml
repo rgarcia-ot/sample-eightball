@@ -29,11 +29,11 @@ stages:
     - task: FortifyOnDemandStatic@9
       inputs:
         FortifyProjects: ''
-        FodConnection: 'FoD_AzureDevOps'
+        FodConnection: 'FoD-Tenant'
         ReleaseOptions: '0'
         ReleaseId: 1590298
         EntitlementSelection: '0'
-        Entitlement: 13738
+        EntitlementSelection: '1'
         EntitlementPreference: '2'
         OverrideScanSettings: '2'
         InProgressScanActionType: '2'
