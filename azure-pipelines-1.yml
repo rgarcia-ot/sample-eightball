@@ -32,7 +32,6 @@ stages:
         FodConnection: 'FoD-Tenant'
         ReleaseOptions: '0'
         ReleaseId: 1590298
-        EntitlementSelection: '0'
         EntitlementSelection: '1'
         EntitlementPreference: '2'
         OverrideScanSettings: '2'
