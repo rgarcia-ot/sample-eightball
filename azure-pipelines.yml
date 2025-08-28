@@ -1,42 +1,27 @@
-# Maven
-# Build your Java project and run tests with Apache Maven.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/java
-
 trigger:
-  branches:
-    include:
-    - main
-stages:
-- stage: __default
-  jobs:
-  - job: Job
-    pool:
-      name: Default
-      demands:
-      - agent.name -equals DESKTOP-V47TP49
-    steps:
-    - task: Maven@3
-      inputs:
-        mavenPomFile: 'pom.xml'
-        mavenOptions: '-Xmx3072m'
-        javaHomeOption: 'JDKVersion'
-        jdkVersionOption: '17'
-        jdkArchitectureOption: 'x64'
-        publishJUnitResults: true
-        testResultsFiles: '**/surefire-reports/TEST-*.xml'
-        goals: 'package'
-    - task: FortifyOnDemandStatic@9
-      inputs:
-        FortifyProjects: ''
-        FodConnection: 'FoD-Tenant'
-        ReleaseOptions: '0'
-        ReleaseId: 1590298
-        EntitlementSelection: '1'
-        EntitlementPreference: '2'
-        OverrideScanSettings: '2'
-        InProgressScanActionType: '2'
-        RemediationScanPreference: '0'
-        BuildType: 'mvn'
-        BuildCommand: 'clean package'
-        PolicyFailAction: '0'
+- main   # dispara la build cuando haya cambios en la rama main
+
+pool:
+  name: Default   # usa tu agente auto-hospedado del pool "Default"
+
+steps:
+# 1. Asegura Java (si lo necesitas explícito)
+- task: JavaToolInstaller@0
+  inputs:
+    versionSpec: '17'
+    jdkArchitectureOption: 'x64'
+    jdkSourceOption: 'PreInstalled'
+
+# 2. Ejecuta Maven con la tarea oficial
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'   # ubicación del POM
+    goals: 'clean install'    # objetivos de Maven
+    publishJUnitResults: true
+    testResultsFiles: '**/surefire-reports/TEST-*.xml'
+    javaHomeOption: 'JDKVersion'
+    mavenVersionOption: 'Default'
+    mavenOptions: '-Xmx1024m'
+    jdkVersionOption: '1.17'
+    jdkArchitectureOption: 'x64'
+
