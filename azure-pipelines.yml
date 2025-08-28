@@ -4,156 +4,39 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/java
 
 trigger:
-- master
-
-pool:
-  vmImage: ubuntu-latest
-
-variables:
-  - group: FortifyCredentials  # Grupo de variables seguras: SSC_URL, SSC_TOKEN, SSC_APP_NAME, SSC_VERSION_NAME, SSC_ISSUE_TEMPLATE_NAME
-  - name: SSC_APP_NAME
-    value: 'Azure_Test_SAST'
-  - name: SSC_VERSION_NAME
-    value: '01'
-  - name: SSC_ISSUE_TEMPLATE_NAME
-    value: 'Prioritized-HighRisk-Project-Template'
-  - name: SSC_ATTRIBUTES_JSON
-    value: '[{"name": "Development Phase", "value": "Active Development"}, {"name": "Development Strategy", "value": "Internally Developed"}, {"name": "Accessibility", "value": "Internal Network Access Required"}]'
-
-steps:
-- powershell: |
-    # Verificar token CIT (opcional, para validar conexión)
-    $headers = @{
-      Authorization = "FortifyToken $(SSC_TOKEN)"
-      Accept = "application/json"
-      'Content-Type' = "application/json"
-    }
-    try {
-      $response = Invoke-RestMethod -Uri "$(SSC_URL)/api/v1/tokens" -Method Get -Headers $headers
-      Write-Output "Token CIT válido. Continuando..."
-    } catch {
-      Write-Error "Error al validar el token CIT: $_"
-      exit 1
-    }
-  displayName: 'Validar Token CIT de SSC'
-  env:
-    SSC_URL: 'https://demo.ot-latam.com:8443/ssc'
-    SSC_TOKEN: $(SSC_TOKEN)
-
-- powershell: |
-    # Crear o obtener aplicación en SSC
-    $headers = @{
-      Authorization = "FortifyToken $(SSC_TOKEN)"
-      Accept = "application/json"
-      'Content-Type' = "application/json"
-    }
-    # Verificar si la app existe
-    $apps = Invoke-RestMethod -Uri "$(SSC_URL)/api/v1/applications?q=name:$(SSC_APP_NAME)" -Method Get -Headers $headers
-    if ($apps.data.Count -eq 0) {
-      $body = @{
-        name = "$(SSC_APP_NAME)"
-        description = "Aplicación creada desde Azure DevOps para SAST"
-        issueTemplateId = "$(SSC_ISSUE_TEMPLATE_NAME)"
-      } | ConvertTo-Json
-      try {
-        $appResponse = Invoke-RestMethod -Uri "$(SSC_URL)/api/v1/applications" -Method Post -Headers $headers -Body $body
-        $appId = $appResponse.data.id
-      } catch {
-        Write-Error "Error al crear la aplicación: $_"
-        exit 1
-      }
-    } else {
-      $appId = $apps.data[0].id
-    }
-    Write-Output "##vso[task.setvariable variable=SSC_APP_ID]$appId"
-  displayName: 'Crear o Obtener Aplicación en SSC'
-
-- powershell: |
-    # Crear o obtener versión del proyecto
-    $headers = @{
-      Authorization = "FortifyToken $(SSC_TOKEN)"
-      Accept = "application/json"
-      'Content-Type' = "application/json"
-    }
-    # Verificar si la versión existe
-    $versions = Invoke-RestMethod -Uri "$(SSC_URL)/api/v1/applications/$(SSC_APP_ID)/versions?q=name:$(SSC_VERSION_NAME)" -Method Get -Headers $headers
-    if ($versions.data.Count -eq 0) {
-      $body = @{
-        name = "$(SSC_VERSION_NAME)"
-        description = "Versión 01 creada desde Azure DevOps"
-        applicationId = "$(SSC_APP_ID)"
-        committed = $false
-        issueTemplateId = "$(SSC_ISSUE_TEMPLATE_NAME)"
-      } | ConvertTo-Json
-      try {
-        $versionResponse = Invoke-RestMethod -Uri "$(SSC_URL)/api/v1/applications/$(SSC_APP_ID)/versions" -Method Post -Headers $headers -Body $body
-        $versionId = $versionResponse.data.id
-      } catch {
-        Write-Error "Error al crear la versión: $_"
-        exit 1
-      }
-    } else {
-      $versionId = $versions.data[0].id
-    }
-    Write-Output "##vso[task.setvariable variable=SSC_VERSION_ID]$versionId"
-  displayName: 'Crear o Obtener Versión en SSC'
-
-- powershell: |
-    # Asignar atributos a la versión
-    $headers = @{
-      Authorization = "FortifyToken $(SSC_TOKEN)"
-      Accept = "application/json"
-      'Content-Type' = "application/json"
-    }
-    $attributes = $(SSC_ATTRIBUTES_JSON) | ConvertFrom-Json
-    $body = $attributes | ConvertTo-Json
-    try {
-      Invoke-RestMethod -Uri "$(SSC_URL)/api/v1/projectVersions/$(SSC_VERSION_ID)/attributes" -Method Put -Headers $headers -Body $body
-    } catch {
-      Write-Error "Error al asignar atributos: $_"
-      exit 1
-    }
-  displayName: 'Asignar Atributos a la Versión'
-
-- powershell: |
-    # Commit la versión
-    $headers = @{
-      Authorization = "FortifyToken $(SSC_TOKEN)"
-      Accept = "application/json"
-      'Content-Type' = "application/json"
-    }
-    $body = @{
-      committed = $true
-    } | ConvertTo-Json
-    try {
-      Invoke-RestMethod -Uri "$(SSC_URL)/api/v1/projectVersions/$(SSC_VERSION_ID)" -Method Put -Headers $headers -Body $body
-    } catch {
-      Write-Error "Error al hacer commit de la versión: $_"
-      exit 1
-    }
-  displayName: 'Commit la Versión en SSC'
-
-- script: |
-    echo "Limpiando proyectos Fortify anteriores..."
-    sourceanalyzer -b Azure_Test_SAST -clean
-  displayName: 'Limpiar proyecto Fortify'
-  env:
-    PATH: "$(PATH);C:/Program Files/Fortify/Fortify_SCA_and_Apps_25.2/bin"
-    JAVA_HOME: "C:/Program Files/Java/jdk-1.8"
-
-- script: |
-    echo "Escaneando código con Fortify SCA..."
-    sourceanalyzer -b Azure_Test_SAST -source 1.8 -scan -f Azure_Test_SAST.fpr
-  displayName: 'Escanear con Fortify SCA'
-  env:
-    PATH: "$(PATH);C:/Program Files/Fortify/Fortify_SCA_and_Apps_25.2/bin"
-    JAVA_HOME: "C:/Program Files/Java/jdk-1.8"
-
-- task: FortifyUpload@2
-  inputs:
-    fortifyProjectName: '$(SSC_APP_NAME)'
-    fortifyProjectVersion: '$(SSC_VERSION_NAME)'
-    fortifyServer: '$(SSC_URL)'
-    fortifyToken: '$(SSC_TOKEN)'
-    fprFile: 'Azure_Test_SAST.fpr'
-  displayName: 'Subir resultados a Fortify SSC'
+  branches:
+    include:
+    - main
+stages:
+- stage: __default
+  jobs:
+  - job: Job
+    pool:
+      name: Default
+      demands:
+      - agent.name -equals DESKTOP-V47TP49
+    steps:
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        mavenOptions: '-Xmx3072m'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '17'
+        jdkArchitectureOption: 'x64'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        goals: 'package'
+    - task: FortifyOnDemandStatic@9
+      inputs:
+        FortifyProjects: ''
+        FodConnection: 'FoD-Tenant'
+        ReleaseOptions: '0'
+        ReleaseId: 1590298
+        EntitlementSelection: '1'
+        EntitlementPreference: '2'
+        OverrideScanSettings: '2'
+        InProgressScanActionType: '2'
+        RemediationScanPreference: '0'
+        BuildType: 'mvn'
+        BuildCommand: 'clean package'
+        PolicyFailAction: '0'
