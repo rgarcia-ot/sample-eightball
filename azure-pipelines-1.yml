@@ -31,7 +31,7 @@ stages:
         FortifyProjects: ''
         FodConnection: 'FoD_AzureDevOps'
         ReleaseOptions: '0'
-        ReleaseId: 1457130
+        ReleaseId: 1590298
         EntitlementSelection: '0'
         Entitlement: 13738
         EntitlementPreference: '2'
