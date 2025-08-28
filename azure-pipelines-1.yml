@@ -1,0 +1,43 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+  branches:
+    include:
+    - main
+stages:
+- stage: __default
+  jobs:
+  - job: Job
+    pool:
+      name: Default
+      demands:
+      - agent.name -equals DESKTOP-V47TP49
+    steps:
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        mavenOptions: '-Xmx3072m'
+        javaHomeOption: 'JDKVersion'
+        jdkVersionOption: '17'
+        jdkArchitectureOption: 'x64'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        goals: 'package'
+    - task: FortifyOnDemandStatic@9
+      inputs:
+        FortifyProjects: ''
+        FodConnection: 'FoD_AzureDevOps'
+        ReleaseOptions: '0'
+        ReleaseId: 1457130
+        EntitlementSelection: '0'
+        Entitlement: 13738
+        EntitlementPreference: '2'
+        OverrideScanSettings: '2'
+        InProgressScanActionType: '2'
+        RemediationScanPreference: '0'
+        BuildType: 'mvn'
+        BuildCommand: 'clean package'
+        PolicyFailAction: '0'
